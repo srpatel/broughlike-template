@@ -21,7 +21,7 @@ function onLoad() {
   const app = new PIXI.Application({
     width: window.innerWidth,
     height: getTargetHeight(),
-    antialias: false,
+    antialias: true,
     transparent: false,
     resolution: window.devicePixelRatio || 1,
   });
