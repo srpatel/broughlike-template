@@ -1,0 +1,8 @@
+dist/bundle.js
+dist/packed.json
+dist/packed.png
+
+node_modules
+
+# macOS only
+.DS_Store

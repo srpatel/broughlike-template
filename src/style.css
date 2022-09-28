@@ -1,0 +1,21 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: #ffffff;
+
+  padding-top: 20px;
+  padding-top: env(safe-area-inset-top);
+
+  padding-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+canvas {
+  image-rendering: pixelated;
+}

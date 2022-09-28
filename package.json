@@ -1,0 +1,31 @@
+{
+  "name": "broughlike-template",
+  "version": "1.0.0",
+  "description": "A small and simple template for making games in the Broughlike style.",
+  "private": "true",
+  "dependencies": {
+    "@pixi/sound": "^4.0.0",
+    "@types/underscore": "^1.11.0",
+    "file-loader": "^6.2.0",
+    "pixi-actions": "^1.0.7",
+    "pixi.js": "^6.5.4",
+    "underscore": "^1.12.0"
+  },
+  "devDependencies": {
+    "css-loader": "^5.1.1",
+    "spritesheet-js": "*",
+    "style-loader": "^2.0.0",
+    "ts-loader": "^8.0.17",
+    "typescript": "^4.2.3",
+    "webpack": "^5.24.3",
+    "webpack-cli": "^4.5.0",
+    "webpack-dev-server": "^3.11.2"
+  },
+  "scripts": {
+    "pack-sprites": "spritesheet-js -p dist --powerOfTwo --padding 2 -n packed -f pixi.js src/assets/pre-pack/*.png",
+    "start": "webpack serve",
+    "build": "webpack"
+  },
+  "author": "sunil patel",
+  "license": "CC0"
+}
