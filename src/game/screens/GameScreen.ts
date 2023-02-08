@@ -52,15 +52,9 @@ export default class GameScreen extends Screen {
     this.scoreLabel.tint = 0xffffff;
     this.gameContainer.addChild(this.scoreLabel);
 
-    // Add the 5x5 grid
-    const dimension = 5;
-    this.dungeonGrid = new DungeonGrid(this, dimension);
-    this.gameContainer.addChild(this.dungeonGrid);
-
     // Add a character
     this.playerCharacter = new PlayerCharacter();
     this.playerCharacter.coords.set(2, 4);
-    this.dungeonGrid.addCharacter(this.playerCharacter);
 
     // Add some enemies
     this.nextLevel();
@@ -115,13 +109,27 @@ export default class GameScreen extends Screen {
   }
 
   nextLevel() {
+    this.incScore(1);
+
     this.level++;
 
     this.readyToMove = true;
+
+    if (this.dungeonGrid) {
+      // Fade this one out...
+      Actions.fadeOutAndRemove(this.dungeonGrid, 0.5).play();
+    }
+
+    this.dungeonGrid = new DungeonGrid(this, Game.DIMENSION);
+    this.dungeonGrid.alpha = 0;
+    Actions.fadeIn(this.dungeonGrid, 0.5).play();
+    this.dungeonGrid.addCharacter(this.playerCharacter);
     this.dungeonGrid.clearEnemies();
     this.dungeonGrid.generateWalls(Math.min(3 + this.level, 8));
-
     this.dungeonGrid.setExitCell();
+
+    this.gameContainer.addChild(this.dungeonGrid);
+    this.resizeAgain();
 
     const monsterLevel = Math.min(this.level, 20);
     const numEnemies =
@@ -157,22 +165,18 @@ export default class GameScreen extends Screen {
     // 1. If you aren't yet ready to move, then queue the direction
     if (this.readyToMove) {
       // 2. Otherwise, do the move
-      const moveResult = {
-        didMove: false,
-        delay: 0,
-      };
-      const moveResultPart = this.dungeonGrid.moveCharacter(
+      const moveResult = this.dungeonGrid.moveCharacter(
         this.playerCharacter,
         dx,
         dy
       );
-      if (moveResultPart.didMove) {
-        moveResult.didMove = true;
-      }
-      moveResult.delay = Math.max(moveResult.delay, moveResultPart.delay);
 
       // 3. If the move was successful, then say we aren't ready to move yet
-      if (moveResult.didMove) {
+      if (moveResult.wentThroughExit) {
+        // Load in new level
+        // Snazzy animation too, if I could handle it!
+        this.nextLevel();
+      } else if (moveResult.didMove) {
         this.postMove(moveResult.delay);
       } else {
         this.readyToMove = false;
@@ -196,14 +200,13 @@ export default class GameScreen extends Screen {
 
     // Any character on exit
     let onExit = false;
-    if (this.dungeonGrid.exitCoords) {
+    if (Game.EXIT_TYPE == "stairs" && this.dungeonGrid.exitCoords) {
       if (this.dungeonGrid.exitCoords.equals(this.playerCharacter.coords)) {
         onExit = true;
       }
     }
 
     if (onExit) {
-      this.incScore(1);
       this.nextLevel();
     } else {
       Actions.sequence(

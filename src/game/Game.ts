@@ -14,6 +14,10 @@ export default class Game {
   static INTEGER_SCALING = false;
   static MAINTAIN_RATIO = false;
 
+  // Game options
+  static EXIT_TYPE: "stairs" | "door" = "stairs";
+  static DIMENSION = 5;
+
   // Debug stuff
   static DEBUG_SHOW_FRAMERATE = true;
 

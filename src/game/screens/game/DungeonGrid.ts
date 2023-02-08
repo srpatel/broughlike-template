@@ -17,8 +17,8 @@ export default class DungeonGrid extends Grid {
   coords: Coords[];
   cellSquares: PIXI.Sprite[][];
   cellStairs: PIXI.Sprite[][];
-  shrineExits: Coords[];
   exitCoords: Coords;
+  exitDir: Coords = null;
   constructor(gameScreen: GameScreen, dimension: number) {
     super(dimension);
 
@@ -109,6 +109,8 @@ export default class DungeonGrid extends Grid {
     for (let i = 0; i < this.dimension; i++) {
       for (let j = 0; j < this.dimension; j++) {
         if (i == 2 && j == 2) continue;
+        if (Game.EXIT_TYPE == "door" && ![0, this.dimension - 1].includes(i) && ![0, this.dimension - 1].includes(j))
+          continue;
         if (dijks.distance[i][j] >= minDistanceFromPlayer) {
           possibles.push(new Coords(i, j));
         }
@@ -126,6 +128,8 @@ export default class DungeonGrid extends Grid {
       for (let i = 0; i < this.dimension; i++) {
         for (let j = 0; j < this.dimension; j++) {
           if (i == 2 && j == 2) continue;
+          if (Game.EXIT_TYPE == "door" && ![0, this.dimension - 1].includes(i) && ![0, this.dimension - 1].includes(j))
+            continue;
           const c = new Coords(i, j);
           let anyCoincidence = false;
           if (this.gameScreen.playerCharacter.coords.equals(c)) {
@@ -141,19 +145,36 @@ export default class DungeonGrid extends Grid {
 
     const coords = _.sample(possibles);
     this.exitCoords = coords;
+    if (Game.EXIT_TYPE == "door") {
+      const possibleDirs = [];
+      if (coords.row == 0)
+        possibleDirs.push(new Coords(0, -1));
+      if (coords.row == this.dimension - 1)
+        possibleDirs.push(new Coords(0, 1));
+      if (coords.col == 0)
+        possibleDirs.push(new Coords(-1, 0));
+      if (coords.col == this.dimension - 1)
+        possibleDirs.push(new Coords(1, 0));
+      if (possibleDirs.length > 0)
+        this.exitDir = _.sample(possibleDirs);
+    }
     this.updateExitCoords();
   }
 
   updateExitCoords() {
-    for (let i = 0; i < this.dimension; i++) {
-      for (let j = 0; j < this.dimension; j++) {
-        if (this.exitCoords) {
-          this.cellStairs[i][j].visible =
-            this.exitCoords.col == i && this.exitCoords.row == j;
-        } else {
-          this.cellStairs[i][j].visible = false;
+    if (true || Game.EXIT_TYPE == "stairs") {
+      for (let i = 0; i < this.dimension; i++) {
+        for (let j = 0; j < this.dimension; j++) {
+          if (this.exitCoords) {
+            this.cellStairs[i][j].visible =
+              this.exitCoords.col == i && this.exitCoords.row == j;
+          } else {
+            this.cellStairs[i][j].visible = false;
+          }
         }
       }
+    } else {
+      // TODO : Gap in outer wall
     }
   }
 
@@ -252,23 +273,27 @@ export default class DungeonGrid extends Grid {
     character: Character,
     dx: number,
     dy: number
-  ): { didMove: boolean; delay: number } {
+  ): { didMove: boolean; delay: number; wentThroughExit: boolean } {
     // Check the target space is available
     const targetCoord = character.coords.clone().add(dx, dy);
 
     // Edge of grid!
     if (!this.inBounds(targetCoord)) {
+      if (this.exitCoords && character.coords.equals(this.exitCoords) && Game.EXIT_TYPE == "door" && this.exitDir && this.exitDir.equals(dx, dy)) {
+        // We are going through the exit!
+        return { didMove: true, delay: 0, wentThroughExit: true };
+      }
       // Hitting the edge of the grid
       Game.instance.playSound("bump");
       const delay = this.bumpAnimation(character, dx, dy);
-      return { didMove: false, delay };
+      return { didMove: false, delay, wentThroughExit: false };
     }
 
     // Hitting a wall?
     if (this.doesWallSeparate(character.coords, dx, dy)) {
       Game.instance.playSound("bump");
       const delay = this.bumpAnimation(character, dx, dy);
-      return { didMove: false, delay };
+      return { didMove: false, delay, wentThroughExit: false };
     }
 
     // Is there another character here?
@@ -280,20 +305,20 @@ export default class DungeonGrid extends Grid {
           // Attack the character
           Game.instance.playSound("attack");
           delay += this.damageEnemy(targetCharacter as EnemyCharacter);
-          return { didMove: true, delay };
+          return { didMove: true, delay, wentThroughExit: false };
         } else if (character.isEnemy && targetCharacter.isPlayer) {
           const player = targetCharacter as PlayerCharacter;
           // Take a damage!
           player.damage(1);
-          return { didMove: true, delay };
+          return { didMove: true, delay, wentThroughExit: false };
         } else {
-          return { didMove: false, delay };
+          return { didMove: false, delay, wentThroughExit: false };
         }
       }
     } catch (e) {
       // The game is over
       this.gameScreen.gameOver();
-      return { didMove: true, delay: 0 };
+      return { didMove: true, delay: 0, wentThroughExit: false };
     }
 
     // Move the character
@@ -304,7 +329,7 @@ export default class DungeonGrid extends Grid {
 
     // Animate to the new position
     this.makeMoveTo(character).play();
-    return { didMove: true, delay: 0.05 };
+    return { didMove: true, delay: 0.05, wentThroughExit: false };
   }
 
   doesWallSeparate(start: Coords, dx: number, dy: number) {
