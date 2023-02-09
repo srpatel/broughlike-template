@@ -14,8 +14,14 @@ export default class Game {
   static INTEGER_SCALING = false;
   static MAINTAIN_RATIO = false;
 
+  // Mouse
+  static HOLD_INITIAL_TIME_MS = 500;
+  static HOLD_REPEAT_TIME_MS = 400;
+  static SWIPE_TRIGGER_THRESHOLD = 10;
+  static SWIPE_MAX_TIME_MS = 500;
+
   // Game options
-  static EXIT_TYPE: "stairs" | "door" = "stairs";
+  static EXIT_TYPE: "stairs" | "door" = "door";
   static DIMENSION = 5;
 
   // Debug stuff
@@ -40,6 +46,9 @@ export default class Game {
 
   startTouch: { x: number; y: number };
   startTouchTime: number;
+  touchPosition: { x: number; y: number } = {x: 0, y: 0};
+  previousHoldPosition: { x: number; y: number } = {x: 0, y: 0};
+  isHoldRepeating: boolean = false;
 
   playerHash: string;
   playerName: string;
@@ -162,36 +171,27 @@ export default class Game {
     const stage = this.backgroundSprite as any;
     stage.interactive = true;
     stage.on("pointerdown", (e: any) => {
+      this.isHoldRepeating = false;
       this.startTouch = { x: e.data.global.x, y: e.data.global.y };
-      this.startTouchTime = new Date().getTime();
+      this.startTouchTime = Date.now();
+    });
+    stage.on("pointermove", (e: any) => {
+      if (!this.startTouch) return;
+      this.touchPosition.x = e.data.global.x;
+      this.touchPosition.y = e.data.global.y;
     });
     stage.on("pointerup", (e: any) => {
       if (!this.startTouch) return;
-      const deltaTime = new Date().getTime() - this.startTouchTime;
+      if (this.isHoldRepeating) {
+        this.startTouch = null;
+        return;
+      }
+      const deltaTime = Date.now() - this.startTouchTime;
+      if (deltaTime > Game.SWIPE_MAX_TIME_MS) return;
       const deltaX = e.data.global.x - this.startTouch.x;
       const deltaY = e.data.global.y - this.startTouch.y;
-      const absDeltaX = Math.abs(deltaX);
-      const absDeltaY = Math.abs(deltaY);
-      const absMin = Math.min(absDeltaX, absDeltaY);
-      const absMax = Math.max(absDeltaX, absDeltaY);
-      // One axis must be above this to trigger a swipe
-      const triggerThreshold = 10;
-      // The other axis must be smaller than this to avoid a diagonal swipe
-      const confusionThreshold = absMax / 2;
-      const maxTimeMs = 500; //ms
-      if (deltaTime < maxTimeMs) {
-        if (absMin < confusionThreshold) {
-          if (absMax > 10) {
-            if (absMax == absDeltaX) {
-              // Right or left
-              this.keydown(deltaX > 0 ? "KeyD" : "KeyA");
-            } else {
-              // Up or down
-              this.keydown(deltaY > 0 ? "KeyS" : "KeyW");
-            }
-          }
-        }
-      }
+      this.performSwipe(deltaX, deltaY);
+      this.startTouch = null;
     });
 
     this.app.ticker.add((delta: number) => this.tick(delta));
@@ -205,12 +205,53 @@ export default class Game {
       resource.sound.play();
     }
   }
+  
+  performSwipe(deltaX: number, deltaY: number) {
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+    const absMin = Math.min(absDeltaX, absDeltaY);
+    const absMax = Math.max(absDeltaX, absDeltaY);
+    // The other axis must be smaller than this to avoid a diagonal swipe
+    const confusionThreshold = absMax / 2;
+    if (absMin < confusionThreshold) {
+      if (absMax > Game.SWIPE_TRIGGER_THRESHOLD) {
+        if (absMax == absDeltaX) {
+          // Right or left
+          this.keydown(deltaX > 0 ? "KeyD" : "KeyA");
+        } else {
+          // Up or down
+          this.keydown(deltaY > 0 ? "KeyS" : "KeyW");
+        }
+      }
+    }
+  }
 
   tick(delta: number) {
     // delta is in frames
     let elapsedSeconds = delta / 60;
 
     Actions.tick(elapsedSeconds);
+    
+    // If pointer is held down, trigger movements.
+    if (this.startTouch) {
+      const elapsed = Date.now() - this.startTouchTime;
+      if (this.isHoldRepeating) {
+        if (elapsed > Game.HOLD_REPEAT_TIME_MS) {
+          const deltaX = this.touchPosition.x - this.startTouch.x;
+          const deltaY = this.touchPosition.y - this.startTouch.y;
+          this.performSwipe(deltaX, deltaY);
+          this.startTouchTime = Date.now();
+        }
+      } else if (elapsed > Game.HOLD_INITIAL_TIME_MS) {
+        // Held down for some time Trigger a swipe!
+        const deltaX = this.touchPosition.x - this.startTouch.x;
+        const deltaY = this.touchPosition.y - this.startTouch.y;
+        this.performSwipe(deltaX, deltaY);
+        // From now on, when we pass HOLD_REPEAT_TIME_MS, we perform another swipe
+        this.isHoldRepeating = true;
+        this.startTouchTime = Date.now();
+      }
+    }
 
     this.fpsAverageShort.push(this.app.ticker.FPS);
     this.fpsAverageLong.push(this.app.ticker.FPS);
