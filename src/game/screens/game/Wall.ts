@@ -162,6 +162,32 @@ export default class Wall extends PIXI.Container {
     return true;
   }
 
+  static edges(dimension: number) {
+    // Generate walls which go all around the edges
+    const walls: Wall[] = [];
+    for (let edge = 0; edge < 4; edge++) {
+      for (let i = 0; i < dimension; i++) {
+        const startCoords = new Coords(0, 0);
+        const endCoords = new Coords(0, 0);
+        if (edge == 0 || edge == 2) {
+          // Top/bottom
+          startCoords.col = i;
+          endCoords.col = i + 1;
+          startCoords.row = edge == 0 ? 0 : dimension;
+          endCoords.row = startCoords.row;
+        } else {
+          // Left/right
+          startCoords.row = i;
+          endCoords.row = i + 1;
+          startCoords.col = edge == 1 ? 0 : dimension;
+          endCoords.col = startCoords.col;
+        }
+        walls.push(new Wall(startCoords, endCoords));
+      }
+    }
+    return walls;
+  }
+
   static randomLayout(numWalls: number, dimension: number): Wall[] {
     const walls: Wall[] = [];
 

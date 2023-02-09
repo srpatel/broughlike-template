@@ -9,25 +9,19 @@ import * as _ from "underscore";
 import Game from "Game";
 
 export default class DungeonGrid extends Grid {
-  characters: Character[];
-  walls: Wall[];
-  wallsHolder: PIXI.Container;
-  charactersHolder: PIXI.Container;
+  characters: Character[] = [];
+  walls: Wall[] = [];
+  edgeWalls: Wall[] = [];
+  wallsHolder: PIXI.Container = new PIXI.Container();
+  charactersHolder: PIXI.Container = new PIXI.Container();
   gameScreen: GameScreen;
-  coords: Coords[];
-  cellSquares: PIXI.Sprite[][];
-  cellStairs: PIXI.Sprite[][];
+  coords: Coords[] = [];
+  cellSquares: PIXI.Sprite[][] = [];
+  cellStairs: PIXI.Sprite[][] = [];
   exitCoords: Coords;
   exitDir: Coords = null;
   constructor(gameScreen: GameScreen, dimension: number) {
     super(dimension);
-
-    this.characters = [];
-    this.walls = [];
-    this.wallsHolder = new PIXI.Container();
-    this.charactersHolder = new PIXI.Container();
-    this.cellSquares = [];
-    this.cellStairs = [];
 
     this.gameScreen = gameScreen;
 
@@ -76,7 +70,6 @@ export default class DungeonGrid extends Grid {
     this.addChild(this.wallsHolder);
     this.addChild(this.charactersHolder);
 
-    this.coords = [];
     for (let i = 0; i < this.dimension; i++) {
       for (let j = 0; j < this.dimension; j++) {
         this.coords.push(new Coords(i, j));
@@ -109,7 +102,11 @@ export default class DungeonGrid extends Grid {
     for (let i = 0; i < this.dimension; i++) {
       for (let j = 0; j < this.dimension; j++) {
         if (i == 2 && j == 2) continue;
-        if (Game.EXIT_TYPE == "door" && ![0, this.dimension - 1].includes(i) && ![0, this.dimension - 1].includes(j))
+        if (
+          Game.EXIT_TYPE == "door" &&
+          ![0, this.dimension - 1].includes(i) &&
+          ![0, this.dimension - 1].includes(j)
+        )
           continue;
         if (dijks.distance[i][j] >= minDistanceFromPlayer) {
           possibles.push(new Coords(i, j));
@@ -128,7 +125,11 @@ export default class DungeonGrid extends Grid {
       for (let i = 0; i < this.dimension; i++) {
         for (let j = 0; j < this.dimension; j++) {
           if (i == 2 && j == 2) continue;
-          if (Game.EXIT_TYPE == "door" && ![0, this.dimension - 1].includes(i) && ![0, this.dimension - 1].includes(j))
+          if (
+            Game.EXIT_TYPE == "door" &&
+            ![0, this.dimension - 1].includes(i) &&
+            ![0, this.dimension - 1].includes(j)
+          )
             continue;
           const c = new Coords(i, j);
           let anyCoincidence = false;
@@ -147,34 +148,45 @@ export default class DungeonGrid extends Grid {
     this.exitCoords = coords;
     if (Game.EXIT_TYPE == "door") {
       const possibleDirs = [];
-      if (coords.row == 0)
-        possibleDirs.push(new Coords(0, -1));
-      if (coords.row == this.dimension - 1)
-        possibleDirs.push(new Coords(0, 1));
-      if (coords.col == 0)
-        possibleDirs.push(new Coords(-1, 0));
-      if (coords.col == this.dimension - 1)
-        possibleDirs.push(new Coords(1, 0));
-      if (possibleDirs.length > 0)
-        this.exitDir = _.sample(possibleDirs);
+      if (coords.row == 0) possibleDirs.push(new Coords(0, -1));
+      if (coords.row == this.dimension - 1) possibleDirs.push(new Coords(0, 1));
+      if (coords.col == 0) possibleDirs.push(new Coords(-1, 0));
+      if (coords.col == this.dimension - 1) possibleDirs.push(new Coords(1, 0));
+      if (possibleDirs.length > 0) this.exitDir = _.sample(possibleDirs);
     }
     this.updateExitCoords();
   }
 
   updateExitCoords() {
-    if (true || Game.EXIT_TYPE == "stairs") {
-      for (let i = 0; i < this.dimension; i++) {
-        for (let j = 0; j < this.dimension; j++) {
-          if (this.exitCoords) {
-            this.cellStairs[i][j].visible =
-              this.exitCoords.col == i && this.exitCoords.row == j;
-          } else {
-            this.cellStairs[i][j].visible = false;
-          }
-        }
-      }
+    if (Game.EXIT_TYPE == "stairs") {
+      this.cellStairs.forEach((a, i) =>
+        a.forEach(
+          (stairs, j) =>
+            (stairs.visible =
+              this.exitCoords &&
+              this.exitCoords.col == i &&
+              this.exitCoords.row == j)
+        )
+      );
     } else {
-      // TODO : Gap in outer wall
+      // Remove other edge walls (if there are any)
+      for (const c of this.edgeWalls) {
+        this.wallsHolder.removeChild(c);
+      }
+      this.edgeWalls = [];
+
+      // Add outer wall
+      let walls = Wall.edges(this.dimension);
+
+      // Make hole where exit is
+      if (this.exitCoords && this.exitDir) {
+        walls = walls.filter(w => !w.blocks(this.exitCoords, this.exitDir.col, this.exitDir.row));
+      }
+
+      // Draw walls
+      this.drawWalls(walls);
+      this.walls.push(...walls);
+      this.edgeWalls.push(...walls);
     }
   }
 
@@ -202,7 +214,11 @@ export default class DungeonGrid extends Grid {
     this.walls = Wall.randomLayout(numWalls, this.dimension);
 
     // Add some new walls... they must generate any closed areas
-    for (const w of this.walls) {
+    this.drawWalls(this.walls);
+  }
+
+  drawWalls(walls: Wall[]) {
+    for (const w of walls) {
       w.alpha = 0;
       Actions.fadeIn(w, 0.2).play();
       this.wallsHolder.addChild(w);
@@ -279,7 +295,13 @@ export default class DungeonGrid extends Grid {
 
     // Edge of grid!
     if (!this.inBounds(targetCoord)) {
-      if (this.exitCoords && character.coords.equals(this.exitCoords) && Game.EXIT_TYPE == "door" && this.exitDir && this.exitDir.equals(dx, dy)) {
+      if (
+        this.exitCoords &&
+        character.coords.equals(this.exitCoords) &&
+        Game.EXIT_TYPE == "door" &&
+        this.exitDir &&
+        this.exitDir.equals(dx, dy)
+      ) {
         // We are going through the exit!
         return { didMove: true, delay: 0, wentThroughExit: true };
       }
