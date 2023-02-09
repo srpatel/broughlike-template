@@ -8,19 +8,13 @@ let cutout: any;
 let timeout: any = null;
 
 function onLoad() {
-  function getTargetHeight() {
-    const pt = parseInt(getComputedStyle(document.body).paddingTop ?? "0");
-    const pb = parseInt(getComputedStyle(document.body).paddingBottom ?? "0");
-    return window.innerHeight - pt - pb;
-  }
-
   function doResize() {
-    game.resize(window.innerWidth, getTargetHeight());
+    game.resize();
   }
 
   const app = new PIXI.Application({
     width: window.innerWidth,
-    height: getTargetHeight(),
+    height: window.innerHeight,
     antialias: true,
     transparent: false,
     resolution: window.devicePixelRatio || 1,
@@ -36,9 +30,10 @@ function onLoad() {
   timeout = setTimeout(doResize, 1000);
 
   document.body.appendChild(app.view);
+  document.body.style.backgroundColor =
+  "#" + Game.BACKGROUND_COLOUR.toString(16).padStart(6, "0");
 
   window.onresize = function (event: Event) {
-    game.resize(window.innerWidth, getTargetHeight());
     doResize();
     clearTimeout(timeout);
     timeout = setTimeout(doResize, 500);

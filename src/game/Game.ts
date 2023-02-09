@@ -13,6 +13,7 @@ export default class Game {
   static TARGET_HEIGHT = 345;
   static INTEGER_SCALING = false;
   static MAINTAIN_RATIO = false;
+  static BACKGROUND_COLOUR = 0x333333;
 
   // Mouse
   static HOLD_INITIAL_TIME_MS = 500;
@@ -38,8 +39,12 @@ export default class Game {
   backgroundSprite: PIXI.Sprite;
   innerBackgroundSprite: PIXI.Sprite;
 
+  // Full size of app
   width: number = window.innerWidth;
   height: number = window.innerHeight;
+  // Size of stage (on mobile, may include inset areas)
+  stageWidth: number = window.innerWidth;
+  stageHeight: number = window.innerHeight;
   scale: number = 1;
 
   currentScreen: Screen;
@@ -68,14 +73,14 @@ export default class Game {
     this.stage = new PIXI.Container();
     this.app.stage.addChild(this.stage);
 
-    this.resize(this.app.renderer.width, this.app.renderer.height);
+    this.resize();
 
     this.init();
   }
 
   setStretchDisplay(s: boolean) {
     this.stretchDisplay = s;
-    this.resize(this.width, this.height);
+    this.resize();
   }
 
   static tex(name: string): PIXI.Texture {
@@ -156,14 +161,14 @@ export default class Game {
 
     // Inner background
     this.innerBackgroundSprite = PIXI.Sprite.from(PIXI.Texture.WHITE);
-    this.innerBackgroundSprite.tint = 0x333333;
+    this.innerBackgroundSprite.tint = Game.BACKGROUND_COLOUR;
     this.innerBackgroundSprite.width = Game.TARGET_WIDTH;
     this.innerBackgroundSprite.height = Game.TARGET_HEIGHT;
     this.stage.addChild(this.innerBackgroundSprite);
 
     this.gotoMenuScreen();
 
-    this.resize(window.innerWidth, window.innerHeight);
+    this.resize();
     this.notifyScreensOfSize();
 
     // Register swipe listeners
@@ -293,35 +298,41 @@ export default class Game {
     }
   }
 
-  resize(width: number, height: number) {
-    //this part resizes the canvas but keeps ratio the same
-    this.app.renderer.view.style.width = width + "px";
-    this.app.renderer.view.style.height = height + "px";
+  resize() {
+    const rootStyle = getComputedStyle(document.documentElement);
+    const resizeInfo = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      safeInsets: {
+        left: parseInt(rootStyle.getPropertyValue('--safe-area-left')) || 0,
+        right: parseInt(rootStyle.getPropertyValue('--safe-area-right')) || 0,
+        top: parseInt(rootStyle.getPropertyValue('--safe-area-top')) || 0,
+        bottom: parseInt(rootStyle.getPropertyValue('--safe-area-bottom')) || 0
+      }
+    };
 
-    this.width = width;
-    this.height = height;
+    //this part resizes the canvas but keeps ratio the same
+    this.app.renderer.view.style.width = resizeInfo.width + "px";
+    this.app.renderer.view.style.height = resizeInfo.height + "px";
+
+    this.width = resizeInfo.width;
+    this.height = resizeInfo.height;
 
     if (this.backgroundSprite) {
-      this.backgroundSprite.width = width;
-      this.backgroundSprite.height = height;
+      this.backgroundSprite.width = resizeInfo.width;
+      this.backgroundSprite.height = resizeInfo.height;
+      this.backgroundSprite.alpha = Game.MAINTAIN_RATIO ? 1 : 0;
     }
 
-    if (this.innerBackgroundSprite) {
-      if (Game.MAINTAIN_RATIO) {
-        this.innerBackgroundSprite.width = Game.TARGET_WIDTH;
-        this.innerBackgroundSprite.height = Game.TARGET_HEIGHT;
-      } else {
-        this.innerBackgroundSprite.width = width;
-        this.innerBackgroundSprite.height = height;
-      }
-    }
-
-    this.app.renderer.resize(width, height);
+    this.app.renderer.resize(resizeInfo.width, resizeInfo.height);
 
     // Ensure stage can fit inside the view!
     // Scale it if it's not snug
-    const targetScaleX = width / Game.TARGET_WIDTH;
-    const targetScaleY = height / Game.TARGET_HEIGHT;
+    // Stage side sits inside the safe insets
+    this.stageWidth = resizeInfo.width - resizeInfo.safeInsets.left - resizeInfo.safeInsets.right;
+    this.stageHeight = resizeInfo.height - resizeInfo.safeInsets.top - resizeInfo.safeInsets.bottom;
+    const targetScaleX = resizeInfo.width / Game.TARGET_WIDTH;
+    const targetScaleY = resizeInfo.height / Game.TARGET_HEIGHT;
     const smoothScaling = Math.min(targetScaleX, targetScaleY);
     // Pick integer scale which best fits
     this.scale = !this.stretchDisplay
@@ -329,14 +340,27 @@ export default class Game {
       : smoothScaling;
     this.stage.scale.set(this.scale, this.scale);
 
+    if (this.innerBackgroundSprite) {
+      if (Game.MAINTAIN_RATIO) {
+        this.innerBackgroundSprite.width = Game.TARGET_WIDTH * this.scale;
+        this.innerBackgroundSprite.height = Game.TARGET_HEIGHT * this.scale;
+      } else {
+        this.innerBackgroundSprite.width = resizeInfo.width;
+        this.innerBackgroundSprite.height = resizeInfo.height;
+      }
+    }
+
     // Centre stage
     if (Game.MAINTAIN_RATIO) {
       this.stage.position.set(
-        (width - Game.TARGET_WIDTH * this.scale) / 2,
-        (height - Game.TARGET_HEIGHT * this.scale) / 2
+        resizeInfo.safeInsets.left + (this.stageWidth - Game.TARGET_WIDTH * this.scale) / 2,
+        resizeInfo.safeInsets.top + (this.stageHeight - Game.TARGET_HEIGHT * this.scale) / 2
       );
+      if (this.innerBackgroundSprite) {
+        this.innerBackgroundSprite.position.set(this.stage.position.x, this.stage.position.y);
+      }
     } else {
-      this.stage.position.set(0, 0);
+      this.stage.position.set(resizeInfo.safeInsets.left, resizeInfo.safeInsets.top);
     }
 
     this.notifyScreensOfSize();
