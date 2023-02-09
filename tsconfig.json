@@ -10,9 +10,9 @@
     "downlevelIteration": true,
     "baseUrl": "./src",
     "paths": {
-      "Game": ["game/Game.ts"],
-      "screens": ["game/screens/index.ts"],
-      "utils": ["game/utils/index.ts"],
+      "Game": ["Game.ts"],
+      "screens": ["screens/index.ts"],
+      "utils": ["utils/index.ts"],
       "ui": ["ui/index.ts"]
     }
   },

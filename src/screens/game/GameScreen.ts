@@ -1,12 +1,12 @@
 import * as PIXI from "pixi.js";
 import { Actions } from "pixi-actions";
 import Game from "Game";
-import Screen from "./Screen";
+import Screen from "../Screen";
 import { Font } from "utils";
 
-import DungeonGrid from "./game/DungeonGrid";
-import { PlayerCharacter, EnemyCharacter } from "./game/character";
-import GameOverModal from "./game/GameOverModal";
+import DungeonGrid from "./grid/DungeonGrid";
+import { PlayerCharacter, EnemyCharacter } from "./character";
+import GameOverModal from "./GameOverModal";
 
 import * as _ from "underscore";
 

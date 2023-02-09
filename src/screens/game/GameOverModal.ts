@@ -4,7 +4,7 @@ import { Font } from "utils";
 
 import * as _ from "underscore";
 
-import GameScreen from "../GameScreen";
+import GameScreen from "./GameScreen";
 
 export default class GameOverModal extends PIXI.Container {
   game: GameScreen;

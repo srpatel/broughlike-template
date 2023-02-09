@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { Actions } from "pixi-actions";
-import { Character, EnemyCharacter, PlayerCharacter } from "./character";
+import { Character, EnemyCharacter, PlayerCharacter } from "../character";
 import GameScreen from "../GameScreen";
 import Grid from "./Grid";
 import Wall from "./Wall";
@@ -176,11 +176,13 @@ export default class DungeonGrid extends Grid {
       this.edgeWalls = [];
 
       // Add outer wall
-      let walls = Wall.edges(this.dimension);
+      let walls: Wall[] = Wall.edges(this.dimension);
 
       // Make hole where exit is
       if (this.exitCoords && this.exitDir) {
-        walls = walls.filter(w => !w.blocks(this.exitCoords, this.exitDir.col, this.exitDir.row));
+        walls = walls.filter(
+          (w) => !w.blocks(this.exitCoords, this.exitDir.col, this.exitDir.row)
+        );
       }
 
       // Draw walls

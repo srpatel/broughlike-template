@@ -1,10 +1,8 @@
-import Game from "./game/Game";
+import Game from "Game";
 import * as PIXI from "pixi.js";
 
 import "./style.css";
 
-let game: Game;
-let cutout: any;
 let timeout: any = null;
 
 function onLoad() {

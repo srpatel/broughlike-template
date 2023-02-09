@@ -2,7 +2,7 @@ import * as PIXI from "pixi.js";
 import Game from "Game";
 import { Button } from "ui";
 import { Font } from "utils";
-import Screen from "./Screen";
+import Screen from "../Screen";
 
 export default class MenuScreen extends Screen {
   static PADDING = 20;
