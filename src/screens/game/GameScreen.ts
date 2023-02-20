@@ -115,21 +115,67 @@ export default class GameScreen extends Screen {
 
     this.readyToMove = true;
 
+    const nextGrid = new DungeonGrid(this, Game.DIMENSION);
     if (this.dungeonGrid) {
-      // Fade this one out...
-      Actions.fadeOutAndRemove(this.dungeonGrid, 0.5).play();
+      // Slide the new one in!
+      if (Game.EXIT_TYPE == "door" && this.dungeonGrid.exitDir) {
+        const dx = this.dungeonGrid.exitDir.col * this.dungeonGrid.edgeSize;
+        const dy = this.dungeonGrid.exitDir.row * this.dungeonGrid.edgeSize;
+        nextGrid.position.set(
+          this.dungeonGrid.position.x + dx,
+          this.dungeonGrid.position.y + dy
+        );
+        nextGrid.alpha = 0;
+        Actions.parallel(
+          Actions.fadeIn(nextGrid, 0.2),
+          Actions.moveTo(
+            nextGrid,
+            this.dungeonGrid.position.x,
+            this.dungeonGrid.position.y,
+            0.5
+          )
+        ).play();
+        Actions.sequence(
+          Actions.parallel(
+            Actions.fadeOut(this.dungeonGrid, 0.2),
+            Actions.moveTo(
+              this.dungeonGrid,
+              this.dungeonGrid.position.x - dx,
+              this.dungeonGrid.position.y - dy,
+              0.5
+            )
+          ),
+          Actions.remove(this.dungeonGrid)
+        ).play();
+
+        // Move the player to opposite side of the dungeon
+        if (this.dungeonGrid.exitDir.col != 0) {
+          this.playerCharacter.coords.col = this.dungeonGrid.dimension - this.playerCharacter.coords.col - 1;
+        } else {
+          this.playerCharacter.coords.row = this.dungeonGrid.dimension - this.playerCharacter.coords.row - 1;
+        }
+        // Ensure that any pending animations don't intefere with positioning in next level
+        Actions.clear(this.playerCharacter);
+      } else {
+        nextGrid.position.set(this.dungeonGrid.position.x, this.dungeonGrid.position.y);
+        nextGrid.alpha = 0;
+        Actions.fadeIn(nextGrid, 0.5).play();
+        Actions.fadeOutAndRemove(this.dungeonGrid, 0.5).play();
+      }
+    } else {
+      // If this is the first grid, we need to place it in the correct place
+      this.resizeAgain();
+      nextGrid.alpha = 0;
+      Actions.fadeIn(nextGrid, 0.5).play();
     }
 
-    this.dungeonGrid = new DungeonGrid(this, Game.DIMENSION);
-    this.dungeonGrid.alpha = 0;
-    Actions.fadeIn(this.dungeonGrid, 0.5).play();
+    this.dungeonGrid = nextGrid;
     this.dungeonGrid.addCharacter(this.playerCharacter);
     this.dungeonGrid.clearEnemies();
     this.dungeonGrid.generateWalls(Math.min(3 + this.level, 8));
     this.dungeonGrid.setExitCell();
 
     this.gameContainer.addChild(this.dungeonGrid);
-    this.resizeAgain();
 
     const monsterLevel = Math.min(this.level, 20);
     const numEnemies =
