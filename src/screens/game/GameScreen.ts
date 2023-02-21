@@ -3,6 +3,7 @@ import { Actions } from "pixi-actions";
 import Game from "Game";
 import Screen from "../Screen";
 import { Font } from "utils";
+import Save from "../../save/Save";
 
 import DungeonGrid from "./grid/DungeonGrid";
 import { PlayerCharacter, EnemyCharacter } from "./character";
@@ -56,9 +57,6 @@ export default class GameScreen extends Screen {
     this.playerCharacter = new PlayerCharacter();
     this.playerCharacter.coords.set(2, 4);
 
-    // Add some enemies
-    this.nextLevel();
-
     // Dark overlay
     this.darkOverlay = new PIXI.Container();
     this.darkOverlay.visible = false;
@@ -68,6 +66,7 @@ export default class GameScreen extends Screen {
       rect.alpha = 0.8;
       this.darkOverlay.addChild(rect);
     }
+    this.addChild(this.darkOverlay);
   }
 
   incScore(amt: number) {
@@ -75,7 +74,7 @@ export default class GameScreen extends Screen {
     this.scoreLabel.text = "" + this.score;
   }
 
-  showDarkOverlay(delay: number = 0, blur: boolean = true) {
+  showDarkOverlay(delay: number = 0) {
     this.darkOverlay.visible = true;
     this.darkOverlay.alpha = 0;
     Actions.sequence(
@@ -96,7 +95,8 @@ export default class GameScreen extends Screen {
 
   gameOver() {
     this.state = "gameover";
-    this.showDarkOverlay(0.5, false);
+    Save.clearGameState();
+    this.showDarkOverlay(0.5);
 
     this.gameOverModal = new GameOverModal(this);
     this.gameOverModal.alpha = 0;
@@ -183,11 +183,13 @@ export default class GameScreen extends Screen {
       Math.min(5, Math.floor(monsterLevel / 5)) +
       Math.min(10, Math.max(0, monsterLevel - 40));
     this.spawnEnemy(numEnemies);
+
+    Save.saveGameState(this);
   }
 
   spawnEnemy(n: number) {
     for (let i = 0; i < n; i++) {
-      const enemyCharacter = new EnemyCharacter();
+      const enemyCharacter = new EnemyCharacter("enemy1");
       // Random empty cell
       const coord = this.dungeonGrid.getRandomEmptyCell();
       if (!coord) return;
@@ -264,6 +266,9 @@ export default class GameScreen extends Screen {
         })
       ).play();
     }
+
+    if (this.state == "play")
+      Save.saveGameState(this);
   }
 
   doEnemyMove() {
@@ -281,6 +286,9 @@ export default class GameScreen extends Screen {
         this.pumpQueuedMove();
       })
     ).play();
+
+    if (this.state == "play")
+      Save.saveGameState(this);
   }
 
   resizeAgain() {

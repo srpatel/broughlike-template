@@ -333,7 +333,9 @@ export default class DungeonGrid extends Grid {
         } else if (character.isEnemy && targetCharacter.isPlayer) {
           const player = targetCharacter as PlayerCharacter;
           // Take a damage!
-          player.damage(1);
+          if (player.damage(1)) {
+            this.gameScreen.gameOver();
+          }
           return { didMove: true, delay, wentThroughExit: false };
         } else {
           return { didMove: false, delay, wentThroughExit: false };

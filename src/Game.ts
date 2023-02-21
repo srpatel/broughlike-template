@@ -4,6 +4,7 @@ import { Actions } from "pixi-actions";
 
 import { Screen, GameScreen, MenuScreen } from "screens";
 import { Font } from "utils";
+import Save from "./save/Save";
 
 import * as _ from "underscore";
 
@@ -73,6 +74,8 @@ export default class Game {
     this.stage = new PIXI.Container();
     this.app.stage.addChild(this.stage);
 
+    Save.initialise();
+
     this.resize();
 
     this.init();
@@ -119,7 +122,11 @@ export default class Game {
   }
 
   gotoGameScreen() {
-    this.setScreen(new GameScreen());
+    const gameScreen = new GameScreen();
+    if (!Save.loadGameState(gameScreen)) {
+      gameScreen.nextLevel();
+    }
+    this.setScreen(gameScreen);
   }
 
   gotoMenuScreen() {
@@ -166,7 +173,11 @@ export default class Game {
     this.innerBackgroundSprite.height = Game.TARGET_HEIGHT;
     this.stage.addChild(this.innerBackgroundSprite);
 
-    this.gotoMenuScreen();
+    if (Save.hasGameState()) {
+      this.gotoGameScreen();
+    } else {
+      this.gotoMenuScreen();
+    }
 
     this.resize();
     this.notifyScreensOfSize();
